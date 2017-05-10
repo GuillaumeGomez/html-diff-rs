@@ -1,0 +1,21 @@
+[package]
+name = "html-diff-rs"
+version = "0.0.1"
+authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
+
+description = "Library detect HTML diffs"
+repository = "https://github.com/GuillaumeGomez/html-diff-rs"
+license = "MIT"
+
+categories = ["hmtl", "diff"]
+
+[features]
+unstable = ["tendril/unstable"]
+
+[dependencies]
+html5ever = "0.15.0"
+tendril = "0.2.2"
+
+[lib]
+name = "html_diff"
+crate_type = ["rlib", "dylib"]
