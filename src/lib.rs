@@ -12,6 +12,7 @@ extern crate html5ever;
 
 use std::io;
 use std::default::Default;
+use std::rc::Rc;
 
 use tendril::{ByteTendril, ReadExt};
 
@@ -19,9 +20,28 @@ use html5ever::tokenizer::{TokenSink, Tokenizer, Token, TokenizerOpts, ParseErro
 use html5ever::tokenizer::{CharacterTokens, NullCharacterToken, TagToken, StartTag, EndTag};
 use html5ever::tokenizer::buffer_queue::BufferQueue;
 
-#[derive(Copy, Clone)]
+#[derive(Debug)]
+struct TreeToken {
+    token: Token,
+    children: Vec<TreeToken>,
+    parent: Option<Box<TreeToken>>,
+}
+
+impl TreeToken {
+    fn new(token: Token, parent: Option<Box<TreeToken>>) -> TreeToken {
+        TreeToken {
+            token: token,
+            children: Vec::new(),
+            parent: parent,
+        }
+    }
+}
+
+#[derive(Debug)]
 struct TokenPrinter {
     in_char_run: bool,
+    tokens: Vec<TreeToken>,
+    current: Option<Box<TreeToken>>,
 }
 
 impl TokenPrinter {
@@ -51,12 +71,32 @@ impl TokenSink for TokenPrinter {
                 }
             }
             NullCharacterToken => self.do_char('\0'),
-            TagToken(tag) => {
+            TagToken(ref tag) => {
                 self.is_char(false);
                 // This is not proper HTML serialization, of course.
                 match tag.kind {
-                    StartTag => print!("TAG  : <\x1b[32m{}\x1b[0m", tag.name),
-                    EndTag   => print!("TAG  : <\x1b[31m/{}\x1b[0m", tag.name),
+                    StartTag => {
+                        //print!("TAG  : <\x1b[32m{}\x1b[0m", tag.name);
+                        let res = { self.current.is_some() };
+                        if res {
+                            let tmp = Box::new(TreeToken::new(token, self.current));
+                            self.current = Some(tmp);
+                        }
+                    }
+                    EndTag => {
+                        //print!("TAG  : <\x1b[31m/{}\x1b[0m", tag.name),
+                        if self.current.is_none() {
+                            println!("Huge issue in here!");
+                            return TokenSinkResult::Continue;
+                        }
+                        let mut parent = self.current.unwrap().parent;
+                        if let Some(mut parent) = parent {
+                            parent.children.push(*self.current.unwrap());
+                        } else {
+                            self.tokens.push(*self.current.unwrap());
+                        }
+                        self.current = parent;
+                    }
                 }
                 for attr in tag.attrs.iter() {
                     print!(" \x1b[36m{}\x1b[0m='\x1b[34m{}\x1b[0m'",
@@ -80,21 +120,21 @@ impl TokenSink for TokenPrinter {
     }
 }
 
-fn main() {
+pub fn entry_point<T: io::Read, U: io::Read>(content1: &mut T, content2: &mut U) {
     let mut sink = TokenPrinter {
         in_char_run: false,
+        tokens: Vec::new(),
+        current: None,
     };
     let mut chunk = ByteTendril::new();
-    io::stdin().read_to_tendril(&mut chunk).unwrap();
+    content1.read_to_tendril(&mut chunk).unwrap();
     let mut input = BufferQueue::new();
     input.push_back(chunk.try_reinterpret().unwrap());
 
-    let mut tok = Tokenizer::new(sink, TokenizerOpts {
-        profile: true,
-        .. Default::default()
-    });
+    let mut tok = Tokenizer::new(sink, TokenizerOpts::default());
     let _ = tok.feed(&mut input);
     assert!(input.is_empty());
     tok.end();
     sink.is_char(false);
+    println!("{:?}", sink);
 }

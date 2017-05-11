@@ -19,3 +19,6 @@ tendril = "0.2.2"
 [lib]
 name = "html_diff"
 crate_type = ["rlib", "dylib"]
+
+[[bin]]
+name = "html_diff"
