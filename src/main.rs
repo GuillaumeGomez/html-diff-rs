@@ -35,8 +35,8 @@ fn main() {
                 }
             }
             (x, y) => {
-                print_error(&arg1, x);
-                print_error(&arg2, y);
+                print_error(arg1, x);
+                print_error(arg2, y);
             }
         }
     }
