@@ -7,7 +7,7 @@ description = "Library detect HTML diffs"
 repository = "https://github.com/GuillaumeGomez/html-diff-rs"
 license = "MIT"
 
-categories = ["hmtl", "diff"]
+categories = ["html", "diff"]
 
 [dependencies]
 kuchiki = "0.4.3"
