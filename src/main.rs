@@ -2,17 +2,17 @@ extern crate html_diff;
 
 use std::env;
 use std::fs::File;
-use std::io::{self, Cursor, Read};
+use std::io::{self, Read};
 use std::path::Path;
 
-fn get_file_content<P: AsRef<Path>>(p: &P) -> io::Result<Vec<u8>> {
+fn get_file_content<P: AsRef<Path>>(p: &P) -> io::Result<String> {
     let mut f = File::open(p)?;
-    let mut buffer = Vec::with_capacity(1000);
-    f.read_to_end(&mut buffer)?;
+    let mut buffer = String::with_capacity(1000);
+    f.read_to_string(&mut buffer)?;
     Ok(buffer)
 }
 
-fn print_error(arg: &str, v: io::Result<Vec<u8>>) {
+fn print_error(arg: &str, v: io::Result<String>) {
     if let Err(err) = v {
         println!("\"{}\": error: {}", arg, err);
     }
@@ -29,7 +29,10 @@ fn main() {
         let arg2 = &args[1];
         match (get_file_content(&arg1), get_file_content(&arg2)) {
             (Ok(content1), Ok(content2)) => {
-                html_diff::entry_point(&mut Cursor::new(content1), &mut Cursor::new(content2));
+                let differences = html_diff::get_differences(&content1, &content2);
+                for diff in differences {
+                    println!("=> {}", diff.to_string());
+                }
             }
             (x, y) => {
                 print_error(&arg1, x);

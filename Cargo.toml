@@ -9,12 +9,9 @@ license = "MIT"
 
 categories = ["hmtl", "diff"]
 
-[features]
-unstable = ["tendril/unstable"]
-
 [dependencies]
-html5ever = "0.15.0"
-tendril = "0.2.2"
+kuchiki = "0.4.3"
+html5ever-atoms = "0.2.1"
 
 [lib]
 name = "html_diff"
