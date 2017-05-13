@@ -1,5 +1,5 @@
 [package]
-name = "html-diff-rs"
+name = "html-diff"
 version = "0.0.1"
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
 
