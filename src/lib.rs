@@ -60,7 +60,7 @@ impl ToOutput for NodeRef {
     }
 
     fn name(&self) -> String {
-        self.to_string().split(" ").next().unwrap().split(">").next().unwrap()[1..].to_owned()
+        self.to_string().split(' ').next().unwrap().split('>').next().unwrap()[1..].to_owned()
     }
 }
 
@@ -158,10 +158,10 @@ impl ToString for Difference {
                         elem.path, elem_text, opposite_elem_text)
             }
             Difference::NotPresent { ref elem, ref opposite_elem } => {
-                if let &Some(ref elem) = elem {
+                if let Some(ref elem) = *elem {
                     format!("{} => [One element is missing]: expected {:?}",
                             elem.path, elem.element_name)
-                } else if let &Some(ref elem) = opposite_elem {
+                } else if let Some(ref elem) = *opposite_elem {
                     format!("{} => [Unexpected element \"{}\"]: found {:?}",
                             elem.path, elem.element_name, elem.element_content)
                 } else {
@@ -191,16 +191,21 @@ fn check_elements(elem1: &NodeDataRef<ElementData>,
             elem: ElementInformation::new(elem1, path),
             opposite_elem: ElementInformation::new(elem2, path),
         })
-    } else if (*e1.attributes.borrow()).map.len() != (*e2.attributes.borrow()).map.len() ||
-              (*e1.attributes.borrow()).map.iter().any(|(k, v)| {
-                  (*e2.attributes.borrow()).map.get(k) != Some(v)
-              }) {
-        Some(Difference::NodeAttributes {
-            elem: ElementInformation::new(elem1, path),
-            elem_attributes: map_conversion(&(*e1.attributes.borrow()).map),
-            opposite_elem: ElementInformation::new(elem2, path),
-            opposite_elem_attributes: map_conversion(&(*e2.attributes.borrow()).map),
-        })
+    } else if (*e1.attributes.borrow()).map.len() != (*e2.attributes.borrow()).map.len() {
+        let all_attributes_match =
+            (*e1.attributes.borrow()).map.iter().any(|(k, v)| {
+                (*e2.attributes.borrow()).map.get(k) != Some(v)
+            });
+        if all_attributes_match {
+            Some(Difference::NodeAttributes {
+                elem: ElementInformation::new(elem1, path),
+                elem_attributes: map_conversion(&(*e1.attributes.borrow()).map),
+                opposite_elem: ElementInformation::new(elem2, path),
+                opposite_elem_attributes: map_conversion(&(*e2.attributes.borrow()).map),
+            })
+        } else {
+            None
+        }
     } else {
         None
     }
@@ -215,7 +220,7 @@ fn check_if_comment_or_empty_text(e: &NodeRef) -> bool {
     }
 }
 
-fn go_through_tree(element1: NodeRef, element2: NodeRef,
+fn go_through_tree(element1: &NodeRef, element2: &NodeRef,
                    path: &mut Vec<String>) -> Vec<Difference> {
     let mut differences = Vec::new();
     let mut pos = 0;
@@ -287,8 +292,8 @@ fn go_through_tree(element1: NodeRef, element2: NodeRef,
         } else {
             false
         };
-        differences.extend_from_slice(&go_through_tree(element1.unwrap(),
-                                                       element2.unwrap(),
+        differences.extend_from_slice(&go_through_tree(&element1.unwrap(),
+                                                       &element2.unwrap(),
                                                        path));
         if need_pop {
             path.pop();
@@ -299,7 +304,7 @@ fn go_through_tree(element1: NodeRef, element2: NodeRef,
 
 /// Take two html content strings in output, returns a `Vec` containing the differences (if any).
 pub fn get_differences(content1: &str, content2: &str) -> Vec<Difference> {
-    go_through_tree(kuchiki::parse_html().one(content1), kuchiki::parse_html().one(content2),
+    go_through_tree(&kuchiki::parse_html().one(content1), &kuchiki::parse_html().one(content2),
                     &mut vec![String::new()])
 }
 
@@ -322,6 +327,39 @@ fn children_diff() {
     let differences = get_differences(original, other);
     assert_eq!(differences.len(), 1, "{:?}", differences);
     assert_eq!(differences[0].is_node_name(), true, "{:?}", differences[0]);
+}
+
+#[test]
+fn check_attributes_order() {
+    let original = "<div id=\"g\" class=\"foo\"><foo><p></p></foo></div>";
+    let other = "<div class=\"foo\" id=\"g\"><foo><p></p></foo></div>";
+
+    let differences = get_differences(original, other);
+    assert_eq!(differences.len(), 0, "{:?}", differences);
+}
+
+#[test]
+fn check_attributes_missing() {
+    let original = "<div id=\"g\" class=\"foo\"><foo><p></p></foo></div>";
+    let other = "<div class=\"foo\"><foo><p></p></foo></div>";
+
+    let differences = get_differences(original, other);
+    assert_eq!(differences.len(), 1, "{:?}", differences);
+    assert_eq!(differences[0].is_node_attributes(), true, "{:?}", differences[0]);
+    match differences[0] {
+        Difference::NodeAttributes { ref elem_attributes,
+                                     ref opposite_elem_attributes,
+                                     .. } => {
+            let mut attributes = HashMap::new();
+            attributes.insert("class".to_owned(), "foo".to_owned());
+            assert_eq!(attributes, *opposite_elem_attributes,
+                       "{:?}/{:?}", opposite_elem_attributes, attributes);
+            attributes.insert("id".to_owned(), "g".to_owned());
+            assert_eq!(attributes, *elem_attributes,
+                       "{:?}/{:?}", elem_attributes, attributes);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -348,7 +386,8 @@ fn test_path() {
             assert_eq!(opposite_elem.is_some(), true, "{:?}", opposite_elem);
             assert_eq!(*opposite_elem,
                        Some(ElementInformation {
-                           element_name: "<d></d>".to_owned(),
+                           element_name: "d".to_owned(),
+                           element_content: "<d></d>".to_owned(),
                            path: "/html[0]/body[1]/div[0]/b[2]/c[0]".to_owned(),
                        }),
                        "{:?}", opposite_elem);

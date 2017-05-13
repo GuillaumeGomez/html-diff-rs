@@ -1,5 +1,5 @@
 [package]
-name = "html-diff-rs"
+name = "html-diff"
 version = "0.0.1"
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
 
@@ -7,7 +7,7 @@ description = "Library detect HTML diffs"
 repository = "https://github.com/GuillaumeGomez/html-diff-rs"
 license = "MIT"
 
-categories = ["hmtl", "diff"]
+categories = ["html", "diff"]
 
 [dependencies]
 kuchiki = "0.4.3"
