@@ -1,6 +1,6 @@
 [package]
 name = "html-diff"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
 
 description = "Library detect HTML diffs"
@@ -10,8 +10,7 @@ license = "MIT"
 categories = ["html", "diff"]
 
 [dependencies]
-kuchiki = "0.4.3"
-html5ever-atoms = "0.2.1"
+kuchiki = "0.5.1"
 
 [[bin]]
 name = "html_diff"

@@ -1,7 +1,5 @@
-extern crate html5ever_atoms;
 extern crate kuchiki;
 
-use html5ever_atoms::QualName;
 use kuchiki::traits::*;
 use kuchiki::{ElementData, NodeDataRef, NodeRef};
 
@@ -60,7 +58,15 @@ impl ToOutput for NodeRef {
     }
 
     fn name(&self) -> String {
-        self.to_string().split(' ').next().unwrap().split('>').next().unwrap()[1..].to_owned()
+        if let Some(s) = self.to_string().split(' ').next().unwrap().split('>').next() {
+            if s.is_empty() {
+                String::new()
+            } else {
+                s[1..].to_owned()
+            }
+        } else {
+            String::new()
+        }
     }
 }
 
@@ -172,15 +178,6 @@ impl ToString for Difference {
     }
 }
 
-fn map_conversion(map: &HashMap<QualName, String>) -> HashMap<String, String> {
-    let mut result = HashMap::with_capacity(map.len());
-
-    for (k, v) in map {
-        result.insert(format!("{}", k.local), v.clone());
-    }
-    result
-}
-
 fn check_elements(elem1: &NodeDataRef<ElementData>,
                   elem2: &NodeDataRef<ElementData>,
                   path: &[String]) -> Option<Difference> {
@@ -199,9 +196,23 @@ fn check_elements(elem1: &NodeDataRef<ElementData>,
         if all_attributes_match {
             Some(Difference::NodeAttributes {
                 elem: ElementInformation::new(elem1, path),
-                elem_attributes: map_conversion(&(*e1.attributes.borrow()).map),
+                elem_attributes: {
+                    let map = &(*e1.attributes.borrow()).map;
+                    let mut result = HashMap::with_capacity(map.len());
+                    for (k, v) in map {
+                        result.insert(format!("{}", k.local), v.clone());
+                    }
+                    result
+                },
                 opposite_elem: ElementInformation::new(elem2, path),
-                opposite_elem_attributes: map_conversion(&(*e2.attributes.borrow()).map),
+                opposite_elem_attributes: {
+                    let map = &(*e2.attributes.borrow()).map;
+                    let mut result = HashMap::with_capacity(map.len());
+                    for (k, v) in map {
+                        result.insert(format!("{}", k.local), v.clone());
+                    }
+                    result
+                },
             })
         } else {
             None
@@ -395,4 +406,26 @@ fn test_path() {
         _ => unreachable!(),
     }
     assert_eq!(differences[0].is_not_present(), true, "{:?}", differences[0]);
+}
+
+#[test]
+fn test_issue_6() {
+    let a = "<!-- .basic -->\n<span class=\"why\">chunky bacon</span>\n\n<!-- .emphasis -->\n\
+             <em>chunky bacon</em>\n\n<!-- .emphasis_with_role -->\n<em class=\"why\">chunky bacon\
+             </em>\n\n<!-- .strong -->\n<strong>chunky bacon</strong>\n\n<!-- .strong_with_role \
+             -->\n<strong class=\"why\">chunky bacon</strong>\n\n<!-- .monospaced -->\n<code>\
+             hello world!</code>\n\n<!-- .monospaced_with_role -->\n<code class=\"why\">hello \
+             world!</code>\n\n<!-- .superscript -->\n<sup>super</sup>chunky bacon\n\n<!-- \
+             .superscript_with_role -->\n<sup class=\"why\">super</sup>chunky bacon\n\n<!-- \
+             .subscript -->\n<sub>sub</sub>chunky bacon\n\n<!-- .subscript_with_role -->\n<sub \
+             class=\"why\">sub</sub>chunky bacon\n\n<!-- .mark -->\n<mark>chunky bacon</mark>\n\n\
+             <!-- .double -->\n“chunky bacon”\n\n<!-- .double_with_role -->\n<span class=\"why\">\
+             “chunky bacon”</span>\n\n<!-- .single -->\n‘chunky bacon’\n\n<!-- .single_with_role \
+             -->\n<span class=\"why\">‘chunky bacon’</span>\n\n<!-- .asciimath -->\n\\$sqrt(4) = 2\
+             \\$\n\n<!-- .latexmath -->\n\\($C = \\alpha + \\beta Y^{\\gamma} + \\epsilon$\\)\n\n\
+             <!-- .with_id -->\n<a id=\"why\"></a><em>chunky bacon</em>\n\n<!-- \
+             .mixed_monospace_bold_italic -->\n<code><strong><em>monospace bold italic phrase</em>\
+             </strong></code> and le<code><strong><em>tt</em></strong></code>ers\n";
+    let b = "<mark></mark><div class=\"paragraph\"><p>chunky bacon</p></div><mark></mark>";
+    let _ = get_differences(a, b);
 }
