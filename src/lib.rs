@@ -188,7 +188,7 @@ fn check_elements(elem1: &NodeDataRef<ElementData>,
             elem: ElementInformation::new(elem1, path),
             opposite_elem: ElementInformation::new(elem2, path),
         })
-    } else if (*e1.attributes.borrow()).map.len() != (*e2.attributes.borrow()).map.len() {
+    } else {
         let all_attributes_match =
             (*e1.attributes.borrow()).map.iter().any(|(k, v)| {
                 (*e2.attributes.borrow()).map.get(k) != Some(v)
@@ -217,8 +217,6 @@ fn check_elements(elem1: &NodeDataRef<ElementData>,
         } else {
             None
         }
-    } else {
-        None
     }
 }
 
@@ -428,4 +426,17 @@ fn test_issue_6() {
              </strong></code> and le<code><strong><em>tt</em></strong></code>ers\n";
     let b = "<mark></mark><div class=\"paragraph\"><p>chunky bacon</p></div><mark></mark>";
     let _ = get_differences(a, b);
+}
+
+#[test]
+fn test_attributes() {
+    let a = r#"<span class="toto"></span>"#;
+    let b = r#"<span class="tata"></span>"#;
+    let differences = get_differences(a, b);
+    assert_eq!(differences.len(), 1);
+
+    let a = r#"<span foo="a" class="toto"></span>"#;
+    let b = r#"<span class="toto" foo="a"></span>"#;
+    let differences = get_differences(a, b);
+    assert_eq!(differences.len(), 0);
 }
