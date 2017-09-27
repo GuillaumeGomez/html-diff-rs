@@ -10,7 +10,8 @@ license = "MIT"
 categories = ["html", "diff"]
 
 [dependencies]
-kuchiki = "0.5.1"
+kuchiki = "0.6"
 
 [[bin]]
 name = "html_diff"
+path = "src/main.rs"
