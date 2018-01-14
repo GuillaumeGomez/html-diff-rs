@@ -71,7 +71,7 @@ impl ToOutput for NodeRef {
 }
 
 /// Contains the kind of difference and some information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Difference {
     /// Different node types at the same place (text vs data for example).
     NodeType {
@@ -232,7 +232,7 @@ fn check_if_comment_or_empty_text(e: &NodeRef) -> bool {
 fn go_through_tree(element1: &NodeRef, element2: &NodeRef,
                    path: &mut Vec<String>) -> Vec<Difference> {
     let mut differences = Vec::new();
-    let mut pos = 0;
+    let mut pos: HashMap<String, usize> = HashMap::new();
     let mut it1 = element1.children().filter(|e| check_if_comment_or_empty_text(e));
     let mut it2 = element2.children().filter(|e| check_if_comment_or_empty_text(e));
     loop {
@@ -292,8 +292,9 @@ fn go_through_tree(element1: &NodeRef, element2: &NodeRef,
         }
         let need_pop = if let Some(ref elem) = element1 {
             if let Some(elem) = elem.as_element() {
-                path.push(format!("{}[{}]", elem.name.local, pos));
-                pos += 1;
+                let pos = pos.entry((*elem.name.local).to_owned()).or_insert(0);
+                path.push(format!("{}[{}]", elem.name.local, *pos));
+                *pos += 1;
                 true
             } else {
                 false
@@ -397,7 +398,7 @@ fn test_path() {
                        Some(ElementInformation {
                            element_name: "d".to_owned(),
                            element_content: "<d></d>".to_owned(),
-                           path: "/html[0]/body[1]/div[0]/b[2]/c[0]".to_owned(),
+                           path: "/html[0]/body[0]/div[0]/b[0]/c[0]".to_owned(),
                        }),
                        "{:?}", opposite_elem);
         }
@@ -439,4 +440,74 @@ fn test_attributes() {
     let b = r#"<span class="toto" foo="a"></span>"#;
     let differences = get_differences(a, b);
     assert_eq!(differences.len(), 0);
+}
+
+#[test]
+fn test_path_logic() {
+    use Difference::NodeText;
+
+    let a = r#"<div>
+    <img src="...">
+    <div>
+        <p>here will be changed content</p>
+    </div>
+</div>"#;
+    let b = r#"<div>
+    <img src="...">
+    <div>
+        <p>here will be changed</p>
+    </div>
+</div>"#;
+
+    let differences = get_differences(a, b);
+    assert_eq!(differences,
+               vec![NodeText {
+                        elem: ElementInformation {
+                                  element_name: String::new(),
+                                  element_content: String::new(),
+                                  path: "/html[0]/body[0]/div[0]/div[0]/p[0]".to_owned(),
+                              },
+                        elem_text: "here will be changed content".to_owned(),
+                        opposite_elem: ElementInformation {
+                                           element_name: String::new(),
+                                           element_content: String::new(),
+                                           path: "/html[0]/body[0]/div[0]/div[0]/p[0]".to_owned(),
+                                       },
+                        opposite_elem_text: "here will be changed".to_owned(),
+                    }]);
+}
+
+#[test]
+fn test_path_logic2() {
+    use Difference::NodeText;
+
+    let a = r#"<div>
+    <div></div>
+    <div>
+        <p>here will be changed content</p>
+    </div>
+</div>"#;
+    let b = r#"<div>
+    <div></div>
+    <div>
+        <p>here will be changed</p>
+    </div>
+</div>"#;
+
+    let differences = get_differences(a, b);
+    assert_eq!(differences,
+               vec![NodeText {
+                        elem: ElementInformation {
+                                  element_name: String::new(),
+                                  element_content: String::new(),
+                                  path: "/html[0]/body[0]/div[0]/div[1]/p[0]".to_owned(),
+                              },
+                        elem_text: "here will be changed content".to_owned(),
+                        opposite_elem: ElementInformation {
+                                           element_name: String::new(),
+                                           element_content: String::new(),
+                                           path: "/html[0]/body[0]/div[0]/div[1]/p[0]".to_owned(),
+                                       },
+                        opposite_elem_text: "here will be changed".to_owned(),
+                    }]);
 }
