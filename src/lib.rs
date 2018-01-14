@@ -62,7 +62,7 @@ impl ToOutput for NodeRef {
             if s.is_empty() {
                 String::new()
             } else {
-                s[1..].to_owned()
+                s.chars().skip(1).collect()
             }
         } else {
             String::new()
@@ -510,4 +510,12 @@ fn test_path_logic2() {
                                        },
                         opposite_elem_text: "here will be changed".to_owned(),
                     }]);
+}
+
+#[test]
+fn test_unicode() {
+    let a = r#"<div><div></div>០</div<"#;
+    let b = r#"<div><div></div>០</div>"#;
+    let differences = get_differences(a, b);
+    assert_eq!(differences.len(), 0);
 }
